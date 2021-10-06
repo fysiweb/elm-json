@@ -14,6 +14,7 @@ use std::{
     path::PathBuf,
 };
 use tracing::{debug, warn};
+use isahc::config::Configurable;
 
 pub struct Retriever {
     deps_cache: HashMap<Summary, Vec<Incompatibility<PackageId>>>,
@@ -216,7 +217,10 @@ impl Retriever {
         debug!("Fetching versions since {}", from);
 
         let url = format!("https://package.elm-lang.org/all-packages/since/{}", from);
-        let response = isahc::get(url)?;
+        let response = isahc::HttpClient::builder()
+            .ssl_ca_certificate(isahc::config::CaCertificate::file(std::env::var("SYSTEM_CERTIFICATE_PATH")?))
+            .build()?
+            .get(url)?;
 
         let versions: Vec<String> = serde_json::from_reader(response.into_body())?;
         let mut res: HashMap<package::Name, Vec<Version>> = HashMap::new();
@@ -256,7 +260,10 @@ impl Retriever {
             "https://package.elm-lang.org/packages/{}/{}/elm.json",
             pkg.id, pkg.version
         );
-        let response = isahc::get(url)?;
+        let response = isahc::HttpClient::builder()
+            .ssl_ca_certificate(isahc::config::CaCertificate::file(std::env::var("SYSTEM_CERTIFICATE_PATH")?))
+            .build()?
+            .get(url)?;
         let info: package::Package = serde_json::from_reader(response.into_body())?;
 
         let path = Self::cached_json_path(pkg)?;
